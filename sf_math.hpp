@@ -7,7 +7,6 @@
 #include <cmath>
 #include <iomanip>
 #include <iostream>
-#include "immintrin.h"
 
 namespace sf {
 
@@ -2683,6 +2682,16 @@ operator <<
 
 template<typename T>
 sf_inline matrix4<T> 
+identity(matrix4<T> mat) {
+	mat.m[0][0] = 1.0f, mat.m[1][0] = 0.0f, mat.m[2][0] = 0.0f, mat.m[3][0] = 0.0f;
+	mat.m[0][1] = 0.0f, mat.m[1][1] = 1.0f, mat.m[2][1] = 0.0f, mat.m[3][1] = 0.0f;
+	mat.m[0][2] = 0.0f, mat.m[1][2] = 0.0f, mat.m[2][2] = 1.0f, mat.m[3][2] = 0.0f;
+	mat.m[0][3] = 0.0f, mat.m[1][3] = 0.0f, mat.m[2][3] = 0.0f, mat.m[3][3] = 1.0f;
+	return mat;
+}
+
+template<typename T>
+sf_inline matrix4<T> 
 transpose(const matrix4<T>& transpose) {
     matrix4<T> mat;
     /* row 1 */
@@ -2781,6 +2790,91 @@ inverse(const matrix4<T> mat) {
 
     return(dest * determinant);
 }
+
+template<typename T>
+sf_inline matrix4<T> 
+translate(const vector3<T>& t) {
+    matrix4<T> r(1.0f);
+    r.m[3][0] = t.x;
+    r.m[3][1] = t.y;
+    r.m[3][2] = t.z;
+    return r;     
+}    
+    
+template<typename T>
+sf_inline matrix4<T> 
+scale(const vector3<T>& s) {
+    matrix4<T> r;
+    r.m[0][0] = s.x;
+    r.m[1][1] = s.y;
+    r.m[2][2] = s.z;
+    return r;
+}
+
+template<typename T>
+sf_inline matrix4<T> 
+rotate(const T ang, const i32 type) {
+    matrix4<T> r;
+    T c = std::cos(ang);
+    T s = std::sin(ang);
+    switch(type) {
+        case 0:
+    		r.m[1][1] =  c;
+    		r.m[2][2] =  c;
+    		r.m[1][2] =  s;
+    		r.m[2][1] = -s;
+    		break;
+    	case 1:
+    		r.m[0][0] =  c;
+    		r.m[2][2] =  c;
+    		r.m[2][0] =  s;
+    		r.m[0][2] = -s;
+    		break;
+    	case 2:
+    		r.m[0][0] =  c;
+    		r.m[1][1] =  c;
+    		r.m[0][1] =  s;
+    		r.m[1][0] = -s;
+    		break;
+    	}	
+    return r;
+}
+
+template<typename T>
+sf_inline matrix4<T> 
+lookat(const vector3<T>& eye, const vector3<T>& target, const vector3<T>& up) {
+    matrix4<T> observer;
+    vector3<T> n = target - eye;
+    n = normalize(n);
+    T b = dot_product(up, n);
+    T ab = std::sqrt(1.0f - sf_math_utils_square(b));
+    observer.m[0][2] = n.x;
+    observer.m[1][2] = n.y;
+    observer.m[2][2] = n.z;
+    observer.m[0][1] = (up.x - b * n.x) / ab;
+    observer.m[1][1] = (up.y - b * n.y) / ab;
+    observer.m[2][1] = (up.z - b * n.z) / ab;
+    observer.m[0][0] = observer.m[1][2] * observer.m[2][1] - observer.m[1][1] * observer.m[2][2];
+    observer.m[1][0] = observer.m[2][2] * observer.m[0][1] - observer.m[2][1] * observer.m[0][2];
+    observer.m[2][0] = observer.m[0][2] * observer.m[1][1] - observer.m[0][1] * observer.m[1][2];
+    matrix4<T> r2 = translate(-eye);      
+    observer = r2 * observer;
+    return observer;
+}
+
+template<typename T>
+sf_inline matrix4<T> 
+perspective_projection(const T& angle_of_view, const T& z_near, const T& z_far) { 
+    matrix4<T> mat;
+    T scale = 1 / std::tan(angle_of_view * 0.5 * PI / 180); 
+    mat.m[0][0] = scale;
+    mat.m[1][1] = scale;
+    mat.m[2][2] = -z_far / (z_far - z_near);
+    mat.m[3][2] = -z_far * z_near / (z_far - z_near);
+    mat.m[2][3] = -1; // set w = -z 
+    mat.m[3][3] = 0; 
+    return mat;
+} 
 
 /*---------------------------*/
 /* Mathematical Type Aliases */
