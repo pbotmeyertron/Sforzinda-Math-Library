@@ -19,7 +19,9 @@ namespace sf {
     #define sf_align(n) __attribute__((aligned(n)))
 #endif
 
-#define sf_inline static inline
+#ifndef sf_inline
+    #define sf_inline static inline
+#endif
 
 //==============================================================================
 // Mathematical Constants                                                  
