@@ -8,8 +8,6 @@
 #include <iomanip>
 #include <iostream>
 #include <immintrin.h>
-#include <smmintrin.h>
-#include <xmmintrin.h>
 
 namespace sf {
 
