@@ -7,6 +7,9 @@
 #include <complex>
 #include <iomanip>
 #include <iostream>
+#include <immintrin.h>
+#include <smmintrin.h>
+#include <xmmintrin.h>
 
 namespace sf {
 
@@ -19,9 +22,7 @@ namespace sf {
     #define sf_align(n) __attribute__((aligned(n)))
 #endif
 
-#ifndef sf_inline
-    #define sf_inline static inline
-#endif
+#define sf_inline static inline
 
 //==============================================================================
 // Mathematical Constants                                                  
@@ -257,8 +258,8 @@ sf_math_utils_sign(i64 val) {
 }
 
 /* Returns the sign of a 32-bit float as +1, -1, or 0. */
-sf_inline 
-f32 sf_math_utils_sign(f32 val) {
+sf_inline f32 
+sf_math_utils_sign(f32 val) {
     return static_cast<f32>((val > 0.0f) - (val < 0.0f));
 }
 
@@ -376,13 +377,13 @@ sf_math_utils_percent_clamped(T from, T to, T current) {
  * The following types are defined as template structs with overloads and
  * common functions used in graphics routines:
  *
- * vec2    - 2D Vector
- * vec3    - 3D Vector
- * vec4    - 4D Vector
- * matrix2    - 2x2 Matrix
- * mat3    - 3x3 Matrix
- * mat4    - 4x4 Matrix
- * quat - quat
+ * vec2 - 2D Vector
+ * vec3 - 3D Vector
+ * vec4 - 4D Vector
+ * mat2 - 2x2 Matrix
+ * mat3 - 3x3 Matrix
+ * mat4 - 4x4 Matrix
+ * quat - Quaternion
  */
 
 /*-----------*/
@@ -438,6 +439,25 @@ struct vec2 {
     operator[] 
     (u32 i) {
         return v[i];
+    }
+
+    [[nodiscard]] inline f32 length() const noexcept {
+        f32 r = std::sqrt(sf_math_utils_square(x) +
+                          sf_math_utils_square(y)); 
+        return r;
+    }
+
+    [[nodiscard]] inline f32 normalize() noexcept {
+        f32 mag = std::sqrt(sf_math_utils_square(x) +
+                            sf_math_utils_square(y)); 
+        if (mag != 0.0f) { 
+            x /= mag; 
+            y /= mag; 
+        } else { 
+            x = 0.0f;
+            y = 0.0f;
+        }
+        return mag;
     }
 
 }; // vec2
@@ -691,7 +711,7 @@ operator !=
     return (lhs.x != rhs.x) || (lhs.y != rhs.y);
 }
 
-/* Allows for printing elements of vec2 to stdout. Thanks to rhsay Tracing in One
+/* Allows for printing elements of vec2 to stdout. Thanks to Ray-Tracing in One
  * Weekend for this. :) */
 [[nodiscard]] sf_inline std::ostream& 
 operator << 
@@ -786,6 +806,9 @@ struct vec3 {
             /* Array notation. */
             f32 v[3]; 
         };
+        struct {
+            __m128 xmm; // 16-byte vector register
+        };
     };
 
     vec3() { 
@@ -804,6 +827,11 @@ struct vec3 {
         x = cx;
         y = cx;
         z = cx; 
+    }
+
+    /* Constructor to convert from type __m128. */
+    vec3(__m128 const x) {
+        xmm = x;
     }
 
     /* Initialize a vec3 with a vec2 and a scalar. */
@@ -837,6 +865,43 @@ struct vec3 {
     operator [] 
     (u32 i) {
         return v[i];
+    }
+
+    /* Assignment operator to convert from type __m128. */
+    [[nodiscard]] constexpr inline vec3& 
+    operator = 
+    (__m128 const x) {
+        xmm = x;
+        return *this;
+    }
+
+    /* Type cast operator to convert to __m128. */
+    [[nodiscard]] constexpr inline 
+    operator __m128() const {
+        return xmm;
+    }
+
+    [[nodiscard]] inline f32 length() const noexcept {
+        f32 r = std::sqrt(sf_math_utils_square(x) +
+                          sf_math_utils_square(y) + 
+                          sf_math_utils_square(z)); 
+        return r;
+    }
+
+    [[nodiscard]] inline f32 normalize() noexcept {
+        f32 mag = std::sqrt(sf_math_utils_square(x) +
+                            sf_math_utils_square(y) + 
+                            sf_math_utils_square(z));
+        if (mag != 0.0f) { 
+            x /= mag; 
+            y /= mag; 
+            z /= mag; 
+        } else { 
+            x = 0.0f;
+            y = 0.0f;
+            z = 0.0f;
+        }
+        return mag;
     }
 
 }; // vec3
@@ -976,12 +1041,12 @@ operator *
 /* Multiplies a vec3 and scalar. */
 [[nodiscard]] sf_inline vec3 
 operator * 
-(const f32 &lhs, const vec3 &rhs) {
+(const f32& lhs, const vec3& rhs) {
     vec3 c;
     c.x = rhs.x * lhs; 
     c.y = rhs.y * lhs; 
     c.z = rhs.z * lhs;
-    return(c);
+    return c;
 }
 
 /* Multiplies a scalar and vec3. */
@@ -1044,7 +1109,7 @@ operator /=
     lhs.x /= rhs.x; 
     lhs.y /= rhs.y; 
     lhs.z /= rhs.z;
-    return(lhs);
+    return lhs;
 }
 
 /* Divide-equals operand for vec3 and scalar. */
@@ -1117,7 +1182,7 @@ operator !=
            (lhs.z != rhs.z));
 }
 
-/* Allows for printing elements of vec3 to stdout. Thanks to rhsay Tracing in One
+/* Allows for printing elements of vec3 to stdout. Thanks to Ray-Tracing in One
  * Weekend for this. :) */
 [[nodiscard]] sf_inline std::ostream& 
 operator << 
@@ -1159,11 +1224,20 @@ dot_product(const vec3& a, const vec3& b) {
 /* Returns the cross product of a 3D vector. */
 [[nodiscard]] sf_inline vec3 
 cross_product(const vec3& a, const vec3& b) {
-    vec3 c;
-    c.x = (a.y * b.z) - (a.z * b.y);
-    c.y = (a.z * b.x) - (a.x * b.z);
-    c.z = (a.x * b.y) - (a.y * b.x);
-    return c;
+    #if defined( __SSE__ ) || defined( __SSE2__ )
+        vec3 temp0 = _mm_shuffle_ps(a, a, _MM_SHUFFLE(3,0,2,1));
+        vec3 temp1 = _mm_shuffle_ps(b, b, _MM_SHUFFLE(3,1,0,2));
+        vec3 temp2 = _mm_mul_ps(temp0, b);
+        vec3 temp3 = _mm_mul_ps(temp0, temp1);
+        vec3 temp4 = _mm_shuffle_ps(temp2, temp2, _MM_SHUFFLE(3,0,2,1));
+        return _mm_sub_ps(temp3, temp4);
+    #else
+        vec3 c;
+        c.x = (a.y * b.z) - (a.z * b.y);
+        c.y = (a.z * b.x) - (a.x * b.z);
+        c.z = (a.x * b.y) - (a.y * b.x);
+        return c;
+    #endif
 }
 
 /* Returns the angle between two 3D vectors. */
@@ -1187,6 +1261,7 @@ distance(const vec3& a, const vec3& b) {
 /*-----------*/
 
 struct vec4 {
+public:
     union {
         struct sf_align(16) { 
             /* Coordinate notation. */
@@ -1196,27 +1271,43 @@ struct vec4 {
             /* Array notation. */
             f32 v[4]; 
         };
+        struct {
+            __m128 xmm; // 16-byte vector register
+        };
     };
 
     vec4() { 
-        x = 0;
-        y = 0;
-        z = 0;
-        w = 0; 
+        #if defined( __SSE__ ) || defined( __SSE2__ )
+            _mm_store_ps(v, _mm_setzero_ps());
+        #else
+            x = 0;
+            y = 0;
+            z = 0;
+            w = 0; 
+        #endif
     }
 
     vec4(f32 cx, f32 cy, f32 cz, f32 cw) { 
-        x = cx; 
-        y = cy; 
-        z = cz; 
-        w = cw; 
+        #if defined( __SSE__ ) || defined( __SSE2__ )
+            xmm = _mm_setr_ps(cx, cy, cz, cw);
+        #else
+            x = cx; 
+            y = cy; 
+            z = cz; 
+            w = cw; 
+        #endif
     }
 
     vec4(f32 cx) { 
-        x = cx;
-        y = cx;
-        z = cx;
-        w = cx; 
+        #if defined( __SSE__ ) || defined( __SSE2__ )
+            /* Broadcast the same value into all elements. */
+            xmm = _mm_set1_ps(cx);
+        #else
+             x = cx;
+             y = cx;
+             z = cx;
+             w = cx; 
+        #endif
     }
 
     /* Initialize a vec4 with a vec3 and a scalar. */
@@ -1249,6 +1340,11 @@ struct vec4 {
         w = v[3]; 
     }
 
+    /* Constructor to convert from type __m128. */
+    vec4(__m128 const x) {
+        xmm = x;
+    }
+
     /* Index or subscript operand. */
     [[nodiscard]] constexpr inline f32 
     operator [] 
@@ -1263,6 +1359,47 @@ struct vec4 {
         return v[i];
     }
 
+    /* Assignment operator to convert from type __m128. */
+    constexpr inline vec4& 
+    operator = 
+    (__m128 const x) {
+        xmm = x;
+        return *this;
+    }
+
+    /* Type cast operator to convert to __m128. */
+    [[nodiscard]] constexpr inline 
+    operator __m128() const {
+        return xmm;
+    }
+
+    [[nodiscard]] inline f32 length() const noexcept {
+        f32 r = std::sqrt(sf_math_utils_square(x) +
+                          sf_math_utils_square(y) + 
+                          sf_math_utils_square(z) + 
+                          sf_math_utils_square(w));
+        return r;
+    }
+
+    [[nodiscard]] inline f32 normalize() noexcept {
+        f32 mag = std::sqrt(sf_math_utils_square(x) +
+                            sf_math_utils_square(y) + 
+                            sf_math_utils_square(z) + 
+                            sf_math_utils_square(w));
+        if (mag != 0.0f) { 
+            x /= mag; 
+            y /= mag; 
+            z /= mag; 
+            w /= mag; 
+        } else { 
+            x = 0.0f;
+            y = 0.0f;
+            z = 0.0f;
+            w = 0.0f; 
+        }
+        return mag;
+    }
+
 }; // vec4
 
 /*---------------------*/
@@ -1273,232 +1410,312 @@ struct vec4 {
 [[nodiscard]] sf_inline vec4 
 operator + 
 (const vec4& lhs, const vec4& rhs) {
-    vec4 c; 
-    c.x = lhs.x + rhs.x; 
-    c.y = lhs.y + rhs.y; 
-    c.z = lhs.z + rhs.z; 
-    c.w = lhs.w + rhs.w; 
-    return c;
+    #if defined( __SSE__ ) || defined( __SSE2__ )
+        return _mm_add_ps(lhs, rhs);
+    #else
+        vec4 c;
+        c.x = lhs.x + rhs.x; 
+        c.y = lhs.y + rhs.y; 
+        c.z = lhs.z + rhs.z; 
+        c.w = lhs.w + rhs.w; 
+        return c;
+    #endif
 }
 
 /* Add vec4 and scalar. */
 [[nodiscard]] sf_inline vec4 
 operator + 
 (const vec4& lhs, const f32& rhs) {
-    vec4 c; 
-    c.x = lhs.x + rhs; 
-    c.y = lhs.y + rhs; 
-    c.z = lhs.z + rhs; 
-    c.w = lhs.w + rhs; 
-    return c;
+    #if defined( __SSE__ ) || defined( __SSE2__ )
+        return _mm_add_ps(lhs, vec4(rhs));
+    #else
+        vec4 c; 
+        c.x = lhs.x + rhs; 
+        c.y = lhs.y + rhs; 
+        c.z = lhs.z + rhs; 
+        c.w = lhs.w + rhs; 
+        return c;
+    #endif
 }
 
 /* Add scalar and vec4. */
 [[nodiscard]] sf_inline vec4 
 operator + 
 (const f32& lhs, const vec4& rhs) {
-    vec4 c; 
-    c.x = lhs + rhs.x; 
-    c.y = lhs + rhs.y; 
-    c.z = lhs + rhs.z; 
-    c.w = lhs + rhs.w; 
-    return c;
+    #if defined( __SSE__ ) || defined( __SSE2__ )
+        return _mm_add_ps(vec4(lhs), rhs);
+    #else
+        vec4 c; 
+        c.x = lhs + rhs.x; 
+        c.y = lhs + rhs.y; 
+        c.z = lhs + rhs.z; 
+        c.w = lhs + rhs.w; 
+        return c;
+    #endif
 }
 
 /* Plus-equals operand with two vec4s. */
 [[nodiscard]] sf_inline vec4& 
 operator += 
 (vec4& lhs, const vec4& rhs) {
-    lhs.x += rhs.x; 
-    lhs.y += rhs.y; 
-    lhs.z += rhs.z; 
-    lhs.w += rhs.w;
-    return lhs;
+    #if defined( __SSE__ ) || defined( __SSE2__ )
+        return lhs += rhs;
+    #else
+        lhs.x += rhs.x; 
+        lhs.y += rhs.y; 
+        lhs.z += rhs.z; 
+        lhs.w += rhs.w;
+        return lhs;
+    #endif
 }
 
 /* Plus-equals operand with a vec4 and scalar. */
 [[nodiscard]] sf_inline vec4& 
 operator += 
 (vec4& lhs, const f32& rhs) {
-    lhs.x += rhs; 
-    lhs.y += rhs; 
-    lhs.z += rhs; 
-    lhs.w += rhs;
-    return lhs;
+    #if defined( __SSE__ ) || defined( __SSE2__ )
+        return lhs += vec4(rhs);
+    #else
+        lhs.x += rhs; 
+        lhs.y += rhs; 
+        lhs.z += rhs; 
+        lhs.w += rhs;
+    #endif
+        return lhs;
 }
 
 /* Unary minus operand. Makes vec4 negative. */
 [[nodiscard]] sf_inline vec4 
 operator - 
 (const vec4& rhs) {
-    vec4 c; 
-    c.x = -rhs.x; 
-    c.y = -rhs.y; 
-    c.z = -rhs.z; 
-    c.w = -rhs.w; 
-    return c;
+    #if defined( __SSE__ ) || defined( __SSE2__ )
+        return _mm_xor_ps(rhs, _mm_castsi128_ps(_mm_set1_epi32(0x80000000)));
+    #else
+        vec4 c; 
+        c.x = -rhs.x; 
+        c.y = -rhs.y; 
+        c.z = -rhs.z; 
+        c.w = -rhs.w; 
+        return c;
+    #endif
 }
 
 /* Subtracts a vec4 from a vec4. */
 [[nodiscard]] sf_inline vec4 
 operator - 
 (const vec4& lhs, const vec4& rhs) {
-    vec4 c; 
-    c.x = lhs.x - rhs.x; 
-    c.y = lhs.y - rhs.y; 
-    c.z = lhs.z - rhs.z; 
-    c.w = lhs.w - rhs.w; 
-    return c;
+    #if defined( __SSE__ ) || defined( __SSE2__ )
+        return _mm_sub_ps(lhs, rhs);
+    #else
+        vec4 c; 
+        c.x = lhs.x - rhs.x; 
+        c.y = lhs.y - rhs.y; 
+        c.z = lhs.z - rhs.z; 
+        c.w = lhs.w - rhs.w; 
+        return c;
+    #endif
 }
 
 /* Subtracts a scalar from a vec4. */
 [[nodiscard]] sf_inline vec4 
 operator - 
 (const vec4& lhs, const f32& rhs) {
-    vec4 c; 
-    c.x = lhs.x - rhs; 
-    c.y = lhs.y - rhs; 
-    c.z = lhs.z - rhs; 
-    c.w = lhs.w - rhs; 
-    return c;
+    #if defined( __SSE__ ) || defined( __SSE2__ )
+        return _mm_sub_ps(lhs, vec4(rhs));
+    #else
+        vec4 c; 
+        c.x = lhs.x - rhs; 
+        c.y = lhs.y - rhs; 
+        c.z = lhs.z - rhs; 
+        c.w = lhs.w - rhs; 
+        return c;
+    #endif
 }
 
 /* Subtracts a vec4 from a scalar. */
 [[nodiscard]] sf_inline vec4 
 operator - 
 (const f32& lhs, const vec4& rhs) {
-    vec4 c; 
-    c.x = lhs - rhs.x; 
-    c.y = lhs - rhs.y; 
-    c.z = lhs - rhs.z; 
-    c.w = lhs - rhs.w; 
-    return c;
+    #if defined( __SSE__ ) || defined( __SSE2__ )
+        return _mm_sub_ps(vec4(lhs), rhs);
+    #else
+        vec4 c; 
+        c.x = lhs - rhs.x; 
+        c.y = lhs - rhs.y; 
+        c.z = lhs - rhs.z; 
+        c.w = lhs - rhs.w; 
+        return c;
+    #endif
 }
 
 /* Minus-equals operand for two vec4s. */
 [[nodiscard]] sf_inline vec4& 
 operator -= 
 (vec4& lhs, const vec4& rhs) {
-    lhs.x -= rhs.x; 
-    lhs.y -= rhs.y; 
-    lhs.z -= rhs.z; 
-    lhs.w -= rhs.w;
-    return lhs;
+    #if defined( __SSE__ ) || defined( __SSE2__ )
+        return lhs -= rhs;
+    #else
+        lhs.x -= rhs.x; 
+        lhs.y -= rhs.y; 
+        lhs.z -= rhs.z; 
+        lhs.w -= rhs.w;
+        return lhs;
+    #endif
 }
 
 /* Minus-equals operand for vec4 and scalar. */
 [[nodiscard]] sf_inline vec4& 
 operator -= 
 (vec4& lhs, const f32& rhs) {
-    lhs.x -= rhs; 
-    lhs.y -= rhs; 
-    lhs.z -= rhs; 
-    lhs.w -= rhs;
-    return lhs;
+    #if defined( __SSE__ ) || defined( __SSE2__ )
+        return lhs -= rhs;
+    #else
+        lhs.x -= rhs; 
+        lhs.y -= rhs; 
+        lhs.z -= rhs; 
+        lhs.w -= rhs;
+        return lhs;
+    #endif
 }
 
 /* Multiplies two vec4s. */
 [[nodiscard]] sf_inline vec4 
 operator * 
 (const vec4& lhs, const vec4& rhs) {
-    vec4 c;
-    c.x = rhs.x * lhs.x; 
-    c.y = rhs.y * lhs.y; 
-    c.z = rhs.z * lhs.z; 
-    c.w = rhs.w * lhs.w;
-    return c;
+    #if defined( __SSE__ ) || defined( __SSE2__ )
+        return _mm_mul_ps(lhs, rhs);
+    #else
+        vec4 c;
+        c.x = rhs.x * lhs.x; 
+        c.y = rhs.y * lhs.y; 
+        c.z = rhs.z * lhs.z; 
+        c.w = rhs.w * lhs.w;
+        return c;
+    #endif
 }
 
 /* Multiplies a vec4 and scalar. */
 [[nodiscard]] sf_inline vec4 
 operator * 
 (const f32& lhs, const vec4& rhs) {
-    vec4 c;
-    c.x = rhs.x * lhs; 
-    c.y = rhs.y * lhs; 
-    c.z = rhs.z * lhs; 
-    c.w = rhs.w * lhs;
-    return c;
+    #if defined( __SSE__ ) || defined( __SSE2__ )
+        return _mm_mul_ps(vec4(lhs), rhs);
+    #else
+        vec4 c;
+        c.x = rhs.x * lhs; 
+        c.y = rhs.y * lhs; 
+        c.z = rhs.z * lhs; 
+        c.w = rhs.w * lhs;
+        return c;
+    #endif
 }
 
 /* Multiplies a scalar and vec4. */
 [[nodiscard]] sf_inline vec4 
 operator * 
 (const vec4& lhs, const f32& rhs) {
-    vec4 c;
-    c.x = rhs * lhs.x;
-    c.y = rhs * lhs.y;
-    c.z = rhs * lhs.z;
-    c.w = rhs * lhs.w;
-    return c;
+    #if defined( __SSE__ ) || defined( __SSE2__ )
+        return _mm_mul_ps(lhs, vec4(rhs));
+    #else
+        vec4 c;
+        c.x = rhs * lhs.x;
+        c.y = rhs * lhs.y;
+        c.z = rhs * lhs.z;
+        c.w = rhs * lhs.w;
+        return c;
+    #endif
 }
 
 /* Multiply-equals operand for vec4. */
 [[nodiscard]] sf_inline vec4& 
 operator *= 
 (vec4& lhs, const vec4& rhs) {
-    lhs.x *= rhs.x; 
-    lhs.y *= rhs.y; 
-    lhs.z *= rhs.z; 
-    lhs.w *= rhs.w;
-    return lhs;
+    #if defined( __SSE__ ) || defined( __SSE2__ )
+        return lhs *= rhs;
+    #else
+        lhs.x *= rhs.x; 
+        lhs.y *= rhs.y; 
+        lhs.z *= rhs.z; 
+        lhs.w *= rhs.w;
+        return lhs;
+    #endif
 }
 
 /* Multiply-equals operand for vec4 and scalar. */
 [[nodiscard]] sf_inline vec4& 
 operator *= 
 (vec4& lhs, const f32& rhs) {
-    lhs.x *= rhs; 
-    lhs.y *= rhs; 
-    lhs.z *= rhs; 
-    lhs.w *= rhs;
-    return lhs;
+    #if defined( __SSE__ ) || defined( __SSE2__ )
+        return lhs *= vec4(rhs);
+    #else
+        lhs.x *= rhs; 
+        lhs.y *= rhs; 
+        lhs.z *= rhs; 
+        lhs.w *= rhs;
+        return lhs;
+    #endif
 }
 
 /* Divides two vec4s. */
 [[nodiscard]] sf_inline vec4 
 operator / 
 (const vec4& lhs, const vec4& rhs) {
-    vec4 c;
-    c.x = lhs.x / rhs.x; 
-    c.y = lhs.y / rhs.y; 
-    c.z = lhs.z / rhs.z; 
-    c.w = lhs.w / rhs.w;
-    return c;
+    #if defined( __SSE__ ) || defined( __SSE2__ )
+        return _mm_div_ps(lhs, rhs);
+    #else
+        vec4 c;
+        c.x = lhs.x / rhs.x; 
+        c.y = lhs.y / rhs.y; 
+        c.z = lhs.z / rhs.z; 
+        c.w = lhs.w / rhs.w;
+        return c;
+    #endif
 }
 
 /* Divides a vec4 by a scalar. */
 [[nodiscard]] sf_inline vec4 
 operator / 
 (const vec4& lhs, const f32& rhs) {
-    vec4 c;
-    c.x = lhs.x / rhs; 
-    c.y = lhs.y / rhs; 
-    c.z = lhs.z / rhs; 
-    c.w = lhs.w / rhs;
-    return c;
+    #if defined( __SSE__ ) || defined( __SSE2__ )
+        return _mm_div_ps(lhs, vec4(rhs));
+    #else
+        vec4 c;
+        c.x = lhs.x / rhs; 
+        c.y = lhs.y / rhs; 
+        c.z = lhs.z / rhs; 
+        c.w = lhs.w / rhs;
+        return c;
+    #endif
 }
 
 /* Divide-equals operand for two vec4s. */
 [[nodiscard]] sf_inline vec4& 
 operator /= 
 (vec4& lhs, const vec4& rhs) {
-    lhs.x /= rhs.x; 
-    lhs.y /= rhs.y; 
-    lhs.z /= rhs.z; 
-    lhs.w /= rhs.w;
-    return lhs;
+    #if defined( __SSE__ ) || defined( __SSE2__ )
+        return lhs /= rhs;
+    #else
+        lhs.x /= rhs.x; 
+        lhs.y /= rhs.y; 
+        lhs.z /= rhs.z; 
+        lhs.w /= rhs.w;
+        return lhs;
+    #endif
 }
 
 /* Divide-equals operand for vec4 and scalar. */
 [[nodiscard]] sf_inline vec4& 
 operator /= 
 (vec4& lhs, const f32& rhs) {
-    lhs.x /= rhs; 
-    lhs.y /= rhs; 
-    lhs.z /= rhs; 
-    lhs.w /= rhs;
-    return lhs;
+    #if defined( __SSE__ ) || defined( __SSE2__ )
+        return lhs /= vec4(rhs);
+    #else
+        lhs.x /= rhs; 
+        lhs.y /= rhs; 
+        lhs.z /= rhs; 
+        lhs.w /= rhs;
+        return lhs;
+    #endif
 }
 
 /* Add one to each element in vec4. */
@@ -1567,7 +1784,7 @@ operator !=
            (lhs.w != rhs.w));
 }
 
-/* Allows for printing elements of vec4 to stdout. Thanks to rhsay Tracing in One
+/* Allows for printing elements of vec4 to stdout. Thanks to Ray-Tracing in One
  * Weekend for this. :) */
 [[nodiscard]] sf_inline std::ostream& 
 operator << 
@@ -1603,6 +1820,7 @@ normalize(vec4& a) {
     return vec4(0.0f, 0.0f, 0.0f, 0.0f);
 }
 
+
 /* Returns the dot product of a 4D vector. */
 [[nodiscard]] sf_inline f32 
 dot_product(const vec4& a, const vec4& b) {
@@ -1615,12 +1833,21 @@ dot_product(const vec4& a, const vec4& b) {
 /* Returns the cross product of a 4D vector. */
 [[nodiscard]] sf_inline vec4 
 cross_product(const vec4& a, const vec4& b) {
-    vec4 c;
-    c.x = (a.y * b.z) - (a.z * b.y);
-    c.y = (a.z * b.x) - (a.x * b.z);
-    c.z = (a.x * b.y) - (a.y * b.x);
-    c.w = (a.w * b.w) - (a.w * b.w); // evaluates to zero
-    return c;
+    #if defined( __SSE__ ) || defined( __SSE2__ )
+        vec4 temp0 = _mm_shuffle_ps(a, a, _MM_SHUFFLE(3,0,2,1));
+        vec4 temp1 = _mm_shuffle_ps(b, b, _MM_SHUFFLE(3,1,0,2));
+        vec4 temp2 = _mm_mul_ps(temp0, b);
+        vec4 temp3 = _mm_mul_ps(temp0, temp1);
+        vec4 temp4 = _mm_shuffle_ps(temp2, temp2, _MM_SHUFFLE(3,0,2,1));
+        return _mm_sub_ps(temp3, temp4);
+    #else
+        vec4 c;
+        c.x = (a.y * b.z) - (a.z * b.y);
+        c.y = (a.z * b.x) - (a.x * b.z);
+        c.z = (a.x * b.y) - (a.y * b.x);
+        c.w = (a.w * b.w) - (a.w * b.w); // evaluates to zero
+        return c;
+    #endif
 }
 
 /* Returns the distance between two 4D vectors. */
@@ -2050,13 +2277,39 @@ struct mat4 {
         f32 f4 = m[0][2] * m[2][3] - m[0][3] * m[2][2];
         f32 f5 = m[0][2] * m[1][3] - m[0][3] * m[1][2];
         vec4 dc = vec4((m[1][1] * f0 - m[2][1] * f1 + m[3][1] * f2), 
-                                  -(m[0][1] * f0 - m[2][1] * f3 + m[3][1] * f4), 
-                                   (m[0][1] * f1 - m[1][1] * f3 + m[3][1] * f5),
-                                  -(m[0][1] * f2 - m[1][1] * f4 + m[2][1] * f5));
+                      -(m[0][1] * f0 - m[2][1] * f3 + m[3][1] * f4), 
+                       (m[0][1] * f1 - m[1][1] * f3 + m[3][1] * f5),
+                      -(m[0][1] * f2 - m[1][1] * f4 + m[2][1] * f5));
         return m[0][0] * dc.x + 
                m[1][0] * dc.y + 
                m[2][0] * dc.z + 
                m[3][0] * dc.w;
+    }
+
+    /* Multiply a mat4 with a scalar. */
+    [[nodiscard]] sf_inline mat4 scale(const mat4& lhs, const f32& rhs) { 
+        mat4 c;
+        /* row 1 */
+        c.m[0][0] = lhs.m[0][0] * rhs; 
+        c.m[1][0] = lhs.m[1][0] * rhs; 
+        c.m[2][0] = lhs.m[2][0] * rhs; 
+        c.m[3][0] = lhs.m[3][0] * rhs;
+        /* row 2 */
+        c.m[0][1] = lhs.m[0][1] * rhs; 
+        c.m[1][1] = lhs.m[1][1] * rhs; 
+        c.m[2][1] = lhs.m[2][1] * rhs; 
+        c.m[3][1] = lhs.m[3][1] * rhs;
+        /* row 3 */
+        c.m[0][2] = lhs.m[0][2] * rhs; 
+        c.m[1][2] = lhs.m[1][2] * rhs; 
+        c.m[2][2] = lhs.m[2][2] * rhs; 
+        c.m[3][2] = lhs.m[3][2] * rhs;
+        /* row 4 */
+        c.m[0][3] = lhs.m[0][3] * rhs; 
+        c.m[1][3] = lhs.m[1][3] * rhs; 
+        c.m[2][3] = lhs.m[2][3] * rhs; 
+        c.m[3][3] = lhs.m[3][3] * rhs;
+        return c;
     }
 
     [[nodiscard]] inline mat4 const inverse() const noexcept {
@@ -2812,7 +3065,8 @@ struct quat {
          * yaw(). */
 
         [[nodiscard]] inline f32 roll() noexcept {
-            f32 x_axis = 1.0f - (2.0f * (sf_math_utils_square(x) + sf_math_utils_square(z)));
+            f32 x_axis = 1.0f - (2.0f * (sf_math_utils_square(x) + 
+                                         sf_math_utils_square(z)));
             f32 y_axis = 2.0f * (w * x - y * z);
             if ((x_axis == 0.0f) && 
                 (y_axis == 0.0f)) { 
@@ -2828,7 +3082,8 @@ struct quat {
         }
 
         [[nodiscard]] inline f32 yaw() noexcept {
-            f32 x_axis = 1.0f - (2.0f * sf_math_utils_square(y) + sf_math_utils_square(z));
+            f32 x_axis = 1.0f - (2.0f * sf_math_utils_square(y) + 
+                                        sf_math_utils_square(z));
             f32 y_axis = 2.0f * (w * y - x * z);
             if ((x_axis == 0.0f) && (y_axis == 0.0f)) { 
                 return((2.0f * std::atan2(x,w))); 
@@ -2919,10 +3174,10 @@ operator *
 operator * 
 (const f32& lhs, const quat& rhs) {
     quat c;
-    c.x=rhs.x*lhs; 
-    c.y=rhs.y*lhs; 
-    c.z=rhs.z*lhs; 
-    c.w=rhs.w*lhs;
+    c.x = rhs.x * lhs; 
+    c.y = rhs.y * lhs; 
+    c.z = rhs.z * lhs; 
+    c.w = rhs.w * lhs;
     return c;
 }
 
@@ -2938,7 +3193,7 @@ operator *
     vec3 qv(lhs.x, lhs.y, lhs.z);
     vec3 uv  = cross_product(qv, rhs);
     vec3 uuv = cross_product(qv, uv);
-    return(rhs + ((uv * lhs.w) + uuv) * 2.0f);
+    return rhs + ((uv * lhs.w) + uuv) * 2.0f;
 }
 
 [[nodiscard]] sf_inline quat& 
