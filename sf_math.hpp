@@ -38,98 +38,98 @@ namespace sf {
 
 /* sqrt(2) */
 #ifndef SQRT_2
-#define SQRT_2          1.414213562373095048801688724209698079  
+#define SQRT_2          1.414213562373095048801688724209698079f  
 #endif
 
 
 /* sqrt(3) */
 #ifndef SQRT_3
-#define SQRT_3          1.732050807568877293527446341505872366  
+#define SQRT_3          1.732050807568877293527446341505872366f  
 #endif
 
 /* sqrt(5) */
 #ifndef SQRT_5
-#define SQRT_5          2.236067977499789696409173668731276235  
+#define SQRT_5          2.236067977499789696409173668731276235f  
 #endif
 
 /* sqrt(1/2) */
 #ifndef SQRT_1_DIV_2
-#define SQRT_1_DIV_2    0.707106781186547524400844362104849039  
+#define SQRT_1_DIV_2    0.707106781186547524400844362104849039f  
 #endif
 
 /* sqrt(1/3) */
 #ifndef SQRT_1_DIV_3
-#define SQRT_1_DIV_3    0.577350269189625764509148780501957455  
+#define SQRT_1_DIV_3    0.577350269189625764509148780501957455f  
 #endif
 
 /* pi */
 #ifndef PI
-#define PI              3.141592653589793238462643383279502884  
+#define PI              3.141592653589793238462643383279502884f  
 #endif
 
 /* pi * 2 */
 #ifndef TAU
-#define TAU             6.283185307179586476925286766559005774
+#define TAU             6.283185307179586476925286766559005774f
 #endif
 
 /* pi/2 */
 #ifndef PI_DIV_2
-#define PI_DIV_2        1.570796326794896619231321691639751442  
+#define PI_DIV_2        1.570796326794896619231321691639751442f  
 #endif
 
 /* pi/4 */
 #ifndef PI_DIV_4
-#define PI_DIV_4        0.785398163397448309615660845819875721  
+#define PI_DIV_4        0.785398163397448309615660845819875721f  
 #endif
 
 /* sqrt(pi) */
 #ifndef SQRT_PI
-#define SQRT_PI         1.772453850905516027298167483341145183  
+#define SQRT_PI         1.772453850905516027298167483341145183f  
 #endif
 
 /* e */
 #ifndef E
-#define E               2.718281828459045235360287471352662498        
+#define E               2.718281828459045235360287471352662498f        
 #endif
 
 /* ln(2) */
 #ifndef LN_2
-#define LN_2            0.693147180559945309417232121458176568  
+#define LN_2            0.693147180559945309417232121458176568f  
 #endif
 
 /* ln(10) */
 #ifndef LN_10
-#define LN_10           2.302585092994045684017991454684364208  
+#define LN_10           2.302585092994045684017991454684364208f  
 #endif
 
 /* ln(pi) */
 #ifndef LN_PI
-#define LN_PI           1.144729885849400174143427351353058712  
+#define LN_PI           1.144729885849400174143427351353058712f  
 #endif
 
 /* log_2(e) */
 #ifndef LOG_BASE_2_E 
-#define LOG_BASE_2_E    1.442695040888963407359924681001892137     
+#define LOG_BASE_2_E    1.442695040888963407359924681001892137f     
 #endif  
   
 /* log_10(e) */
 #ifndef LOG_BASE_10_E
-#define LOG_BASE_10_E   0.434294481903251827651128918916605082  
+#define LOG_BASE_10_E   0.434294481903251827651128918916605082f  
 #endif
 
 /* Euler-Mascheroni Constant */
 #ifndef EULER
-#define EULER           0.577215664901532860606512090082402431  
+#define EULER           0.577215664901532860606512090082402431f  
 #endif
 
 /* Golden rhsatio */
 #ifndef PHI
-#define PHI             1.618033988749894848204586834365638118  
+#define PHI             1.618033988749894848204586834365638118f  
 #endif
 
 /* Apery's Constant */
 #ifndef APERY
-#define APERY           1.202056903159594285399738161511449991  
+#define APERY           1.202056903159594285399738161511449991f  
 #endif
 
 //==============================================================================
@@ -1857,11 +1857,276 @@ distance(const vec4& a, const vec4& b) {
                      sf_math_utils_square(b.w - a.w));
 }
 
-//==============================================================================
-// matrix2                                                 
-//==============================================================================
-// TODO: Come back and define matrix2
-/* 2x2 Matrix */
+/*-----------*/
+/* 2D Matrix */
+/*-----------*/
+
+struct mat2 {
+    union {
+        struct sf_align(16) { 
+            f32 m[2][2]; 
+        };
+        struct sf_align(16) { 
+            f32 M[4]; 
+        };
+        struct sf_align(16) { 
+            f32 x0,x1;
+            f32 y0,y1; 
+        };
+        struct { 
+            __m128 xmm; // 16-byte vector register 
+        };
+    };
+
+    mat2() { 
+        x0 = 0.0f; y0 = 0.0f;
+        x1 = 0.0f; y1 = 0.0f; 
+    }
+
+    mat2(vec2 v1, vec2 v2) { 
+        x0 = v1.x; y0 = v1.y; 
+        x1 = v2.x; y1 = v2.y; 
+    }
+
+    mat2(const mat2& v) { 
+        x0 = v.x0; y0 = v.y0; 
+        x1 = v.x1; y1 = v.y1; 
+    }
+
+    /* Constructor to convert from type __m128. */
+    mat2(__m128 const x) {
+        xmm = x;
+    }
+
+   /* Assignment operator to convert from type __m256. */
+    [[nodiscard]] constexpr inline mat2& 
+    operator = 
+    (__m128 const x) {
+        xmm = x;
+        return *this;
+    }
+
+    /* Type cast operator to convert to __m256. */
+    [[nodiscard]] constexpr inline 
+    operator __m128() const {
+        return xmm;
+    }
+
+    [[nodiscard]] inline mat2 const transpose() const noexcept {
+        mat2 transpose;
+        transpose.m[0][0]=m[0][0]; 
+        transpose.m[1][0]=m[0][1];
+        transpose.m[0][1]=m[1][0]; 
+        transpose.m[1][1]=m[1][1];
+        return transpose;
+    }
+
+    [[nodiscard]] inline f32 const determinant() const noexcept {
+        return m[0][0] * m[1][1] - 
+               m[1][0] * m[0][1];
+    }
+
+    [[nodiscard]] inline mat2 const inverse() const noexcept {
+        f32 inverse_determinant = 1.0f / (m[0][0] * m[1][1] - 
+                                          m[1][0] * m[0][1]);
+        mat2 inverse;
+        inverse.m[0][0] =  m[1][1] * inverse_determinant;
+        inverse.m[1][0] = -m[1][0] * inverse_determinant;
+        inverse.m[0][1] = -m[0][1] * inverse_determinant;
+        inverse.m[1][1] =  m[0][0] * inverse_determinant;
+        return inverse;
+    }
+}; // mat2
+
+/* Add two mat2s. */
+[[nodiscard]] sf_inline mat2 
+operator + 
+(const mat2& lhs, const mat2& rhs) {
+    mat2 c;
+    c.m[0][0] = lhs.m[0][0] + rhs.m[0][0]; 
+    c.m[1][0] = lhs.m[1][0] + rhs.m[1][0];
+    c.m[0][1] = lhs.m[0][1] + rhs.m[0][1]; 
+    c.m[1][1] = lhs.m[1][1] + rhs.m[1][1];
+    return(c);
+}
+
+/* Mat2 plus-equals operand. */
+[[nodiscard]] sf_inline mat2& 
+operator += 
+(mat2& lhs, const mat2& rhs) {
+    lhs = lhs + rhs;
+    return lhs;
+}
+
+/* Unary minus operand. Makes mat2 negative. */
+[[nodiscard]] sf_inline mat2 
+operator - 
+(const mat2& rhs) {
+    mat2 c;
+    c.x0 = -rhs.x0; 
+    c.y0 = -rhs.y0;
+    c.x1 = -rhs.x1; 
+    c.y1 = -rhs.y1;
+    return c;
+}
+
+/* Subtract a mat2 from a mat2. */
+[[nodiscard]] sf_inline mat2 
+operator - 
+(const mat2& lhs, const mat2& rhs) {
+    mat2 c;
+    c.m[0][0] = lhs.m[0][0] - rhs.m[0][0]; 
+    c.m[1][0] = lhs.m[1][0] - rhs.m[1][0];
+    c.m[0][1] = lhs.m[0][1] - rhs.m[0][1]; 
+    c.m[1][1] = lhs.m[1][1] - rhs.m[1][1];
+    return c;
+}
+
+/* Multiply a mat2 with vec2. */
+[[nodiscard]] sf_inline vec2 
+operator * 
+(const mat2& lhs, const vec2& rhs) {
+    vec2 c;
+    c.x = rhs.x * lhs.x0 + rhs.y * lhs.x1;
+    c.y = rhs.x * lhs.y0 + rhs.y * lhs.y1;
+    return c;
+}
+
+/* Multiply a vec2 with a mat2. */
+[[nodiscard]] sf_inline vec2 
+operator * 
+(const vec2& lhs, const mat2& rhs) {
+    vec2 c;
+    c.x = lhs.x * rhs.x0 + lhs.y * rhs.y0;
+    c.y = lhs.x * rhs.x1 + lhs.y * rhs.y1;
+    return c;
+}
+
+/* Multiply mat2 with scalar. */
+[[nodiscard]] sf_inline mat2 
+operator * 
+(const mat2& lhs, const f32& rhs) {
+    mat2 c;
+    c.m[0][0] = lhs.m[0][0] * rhs; 
+    c.m[1][0] = lhs.m[1][0] * rhs;
+    c.m[0][1] = lhs.m[0][1] * rhs; 
+    c.m[1][1] = lhs.m[1][1] * rhs;
+    return c;
+}
+
+/* Multiply scalar with mat2. */
+[[nodiscard]] sf_inline mat2 
+operator * 
+(const f32& lhs, const mat2& rhs) {
+    return rhs * lhs;
+}
+
+/* Multiply two mat2s. */
+[[nodiscard]] sf_inline mat2 
+operator * 
+(const mat2& lhs, const mat2& rhs) {
+    mat2 c;
+    c.m[0][0] = rhs.m[0][0] * lhs.m[0][0] + rhs.m[1][0] * lhs.m[0][1];
+    c.m[1][0] = rhs.m[0][0] * lhs.m[1][0] + rhs.m[1][0] * lhs.m[1][1];
+    c.m[0][1] = rhs.m[0][1] * lhs.m[0][0] + rhs.m[1][1] * lhs.m[0][1];
+    c.m[1][1] = rhs.m[0][1] * lhs.m[1][0] + rhs.m[1][1] * lhs.m[1][1];
+    return c;
+}
+
+/* Divide a mat2 by an f32. */
+[[nodiscard]] sf_inline mat2 
+operator / 
+(const mat2& lhs, const f32& rhs) {
+    mat2 c;
+    c.m[0][0] = lhs.m[0][0] / rhs; 
+    c.m[1][0] = lhs.m[1][0] / rhs;
+    c.m[0][1] = lhs.m[0][1] / rhs; 
+    c.m[1][1] = lhs.m[1][1] / rhs;
+    return c;
+}
+
+/* Divide two mat2s. */
+[[nodiscard]] sf_inline mat2 
+operator / 
+(const mat2& lhs, const mat2& rhs) {
+    return lhs * rhs.inverse();
+}
+
+/* Mat2 minus-equals operand. */
+[[nodiscard]] sf_inline mat2& 
+operator -= 
+(mat2& lhs, const mat2& rhs) {
+    lhs = lhs - rhs;
+    return lhs;
+}
+
+/* Mat2 multiply-equals operand. */
+[[nodiscard]] sf_inline mat2& 
+operator *= 
+(mat2& lhs, const mat2& rhs) {
+    lhs = lhs * rhs;
+    return lhs;
+}
+
+/* Mat2 multiply-equals operand with scalar. */
+[[nodiscard]] sf_inline mat2& 
+operator *= 
+(mat2& lhs, const f32& rhs) {
+    lhs = lhs * rhs;
+    return lhs;
+}
+
+/* Mat2 divide-equals operand. */
+[[nodiscard]] sf_inline mat2& 
+operator /= 
+(mat2& lhs, const mat2& rhs) {
+    lhs=lhs/rhs;
+    return(lhs);
+}
+
+/* Mat2 divide-equals operand with scalar. */
+[[nodiscard]] sf_inline mat2& 
+operator /= 
+(mat2& lhs, const f32& rhs) {
+    lhs = lhs / rhs;
+    return lhs;
+}
+
+/* Test mat2 for equality. */
+[[nodiscard]] sf_inline bool 
+operator == 
+(const mat2& lhs, const mat2& rhs) {
+    return (lhs.M[0] == rhs.M[0]) && 
+           (lhs.M[1] == rhs.M[1]) && 
+           (lhs.M[2] == rhs.M[2]) && 
+           (lhs.M[3] == rhs.M[3]);
+    }
+
+/* Test mat2 for non-equality. */
+[[nodiscard]] sf_inline bool 
+operator != 
+(const mat2& lhs, const mat2& rhs) {
+    return (lhs.M[0] != rhs.M[0]) || 
+           (lhs.M[1] != rhs.M[1]) || 
+           (lhs.M[2] != rhs.M[2]) || 
+           (lhs.M[3] != rhs.M[3]);
+}
+
+
+/* Allows for printing elements of mat2 to stdout. */
+[[nodiscard]] sf_inline std::ostream& 
+operator << 
+(std::ostream &os, const mat2 &rhs) {
+    std::ios_base::fmtflags f = os.flags();
+    os << std::fixed;
+    os << std::endl;
+    os << "| " << std::setprecision(5) << std::setw(10) << rhs.x0 << " " 
+               << std::setprecision(5) << std::setw(10) << rhs.x1 << " |" << std::endl;
+    os << "| " << std::setprecision(5) << std::setw(10) << rhs.y0 << " " 
+               << std::setprecision(5) << std::setw(10) << rhs.y1 << " |" << std::endl;
+    os.flags(f);
+    return os;
+}
 
 /*-----------*/
 /* 3D Matrix */
@@ -2223,15 +2488,18 @@ struct mat4 {
             f32 z0, z1, z2, z3; 
             f32 w0, w1, w2, w3; 
         };
+        struct {
+            __m128 matrix_register[4]; // register for storing mat4 values
+        };
     };
 
     mat4() { 
         x0 = 0; y0 = 0; z0 = 0; w0 = 0;
         x1 = 0; y1 = 0; z1 = 0; w1 = 0;
         x2 = 0; y2 = 0; z2 = 0; w2 = 0;
-        x3 = 0; y3 = 0; z3 = 0; w3 = 0; 
-    }
-
+        x3 = 0; y3 = 0; z3 = 0; w3 = 0;
+    }    
+    
     mat4(vec4 v1, vec4 v2, vec4 v3, vec4 v4) { 
         x0 = v1.x; y0 = v1.y; z0 = v1.z; w0 = v1.w; 
         x1 = v2.x; y1 = v2.y; z1 = v2.z; w1 = v2.w; 
@@ -2284,96 +2552,202 @@ struct mat4 {
                m[3][0] * dc.w;
     }
 
-    /* Multiply a mat4 with a scalar. */
-    [[nodiscard]] sf_inline mat4 scale(const mat4& lhs, const f32& rhs) { 
-        mat4 c;
-        /* row 1 */
-        c.m[0][0] = lhs.m[0][0] * rhs; 
-        c.m[1][0] = lhs.m[1][0] * rhs; 
-        c.m[2][0] = lhs.m[2][0] * rhs; 
-        c.m[3][0] = lhs.m[3][0] * rhs;
-        /* row 2 */
-        c.m[0][1] = lhs.m[0][1] * rhs; 
-        c.m[1][1] = lhs.m[1][1] * rhs; 
-        c.m[2][1] = lhs.m[2][1] * rhs; 
-        c.m[3][1] = lhs.m[3][1] * rhs;
-        /* row 3 */
-        c.m[0][2] = lhs.m[0][2] * rhs; 
-        c.m[1][2] = lhs.m[1][2] * rhs; 
-        c.m[2][2] = lhs.m[2][2] * rhs; 
-        c.m[3][2] = lhs.m[3][2] * rhs;
-        /* row 4 */
-        c.m[0][3] = lhs.m[0][3] * rhs; 
-        c.m[1][3] = lhs.m[1][3] * rhs; 
-        c.m[2][3] = lhs.m[2][3] * rhs; 
-        c.m[3][3] = lhs.m[3][3] * rhs;
-        return c;
-    }
+    /*-----------------------------*/
+    /* 4D Matrix Inverse Functions */
+    /*-----------------------------*/
 
+    /* The following code for the matrix inverse is a modified version of Eric
+     * Zhang's blogpost on the subject. Credit goes to him for this algorithm.
+     * https://lxjk.github.io/2017/09/03/Fast-4x4-Matrix-Inverse-with-SSE-SIMD-Explained.html */
+
+    /* Defines used in inverse function. */
+
+    #define sf_shuffle_mask(x, y, z, w)                  (x | (y << 2) | (z << 4) | (w << 6))
+
+    #define sf_vec_swizzle_mask(vec, mask)               _mm_castsi128_ps(_mm_shuffle_epi32(  \
+                                                         _mm_castps_si128(vec), mask))
+
+    #define sf_vec_swizzle_all_elements(vec, x, y, z, w) sf_vec_swizzle_mask(vec,             \
+                                                         sf_shuffle_mask(x,y,z,w))
+
+    #define sf_vec_swizzle_single_element(vec, x)        sf_vec_swizzle_mask(vec,             \
+                                                         sf_shuffle_mask(x,x,x,x))
+
+    #define sf_vec_shuffle(vec1, vec2, x,y,z,w)          _mm_shuffle_ps(vec1, vec2,           \
+                                                         sf_shuffle_mask(x,y,z,w))
+
+    #define sf_vec_shuffle_0101(vec1, vec2)              _mm_movelh_ps(vec1, vec2)
+
+    #define sf_vec_shuffle_2323(vec1, vec2)              _mm_movehl_ps(vec2, vec1)
+
+    /* Mat4 inverse member function. */
     [[nodiscard]] inline mat4 const inverse() const noexcept {
-        f32 c00 = m[2][2] * m[3][3] - m[2][3] * m[3][2];
-        f32 c02 = m[2][1] * m[3][3] - m[2][3] * m[3][1];
-        f32 c03 = m[2][1] * m[3][2] - m[2][2] * m[3][1];
-        f32 c04 = m[1][2] * m[3][3] - m[1][3] * m[3][2];
-        f32 c06 = m[1][1] * m[3][3] - m[1][3] * m[3][1];
-        f32 c07 = m[1][1] * m[3][2] - m[1][2] * m[3][1];
-        f32 c08 = m[1][2] * m[2][3] - m[1][3] * m[2][2];
-        f32 c10 = m[1][1] * m[2][3] - m[1][3] * m[2][1];
-        f32 c11 = m[1][1] * m[2][2] - m[1][2] * m[2][1];
-        f32 c12 = m[0][2] * m[3][3] - m[0][3] * m[3][2];
-        f32 c14 = m[0][1] * m[3][3] - m[0][3] * m[3][1];
-        f32 c15 = m[0][1] * m[3][2] - m[0][2] * m[3][1];
-        f32 c16 = m[0][2] * m[2][3] - m[0][3] * m[2][2];
-        f32 c18 = m[0][1] * m[2][3] - m[0][3] * m[2][1];
-        f32 c19 = m[0][1] * m[2][2] - m[0][2] * m[2][1];
-        f32 c20 = m[0][2] * m[1][3] - m[0][3] * m[1][2];
-        f32 c22 = m[0][1] * m[1][3] - m[0][3] * m[1][1];
-        f32 c23 = m[0][1] * m[1][2] - m[0][2] * m[1][1];
-        vec4 f0(c00, c00, c02, c03);
-        vec4 f1(c04, c04, c06, c07);
-        vec4 f2(c08, c08, c10, c11);
-        vec4 f3(c12, c12, c14, c15);
-        vec4 f4(c16, c16, c18, c19);
-        vec4 f5(c20, c20, c22, c23);
-        vec4 v0(m[0][1], m[0][0], m[0][0], m[0][0]);
-        vec4 v1(m[1][1], m[1][0], m[1][0], m[1][0]);
-        vec4 v2(m[2][1], m[2][0], m[2][0], m[2][0]);
-        vec4 v3(m[3][1], m[3][0], m[3][0], m[3][0]);
-        vec4 i0(v1 * f0 - v2 * f1 + v3 * f2);
-        vec4 i1(v0 * f0 - v2 * f3 + v3 * f4);
-        vec4 i2(v0 * f1 - v1 * f3 + v3 * f5);
-        vec4 i3(v0 * f2 - v1 * f4 + v2 * f5);
-        vec4 sA( 1, -1,  1, -1);
-        vec4 sB(-1,  1, -1,  1);
-        mat4 inverse(i0 * sA, i1 * sB, i2 * sA, i3 * sB);
-        vec4 r0(inverse.m[0][0],
-                inverse.m[0][1],
-                inverse.m[0][2],
-                inverse.m[0][3]);
-        vec4 d0(m[0][0] * r0.x, 
-                m[1][0] * r0.y, 
-                m[2][0] * r0.z, 
-                m[3][0] * r0.w);
-        f32 d1 = (d0.x + d0.y) + (d0.z + d0.w);
-        f32 inverse_determinant = 1.0f / d1;
-        mat4 dest;  
-        dest.m[0][0] = inverse.m[0][0] * inverse_determinant; 
-        dest.m[1][0] = inverse.m[1][0] * inverse_determinant; 
-        dest.m[2][0] = inverse.m[2][0] * inverse_determinant; 
-        dest.m[3][0] = inverse.m[3][0] * inverse_determinant;
-        dest.m[0][1] = inverse.m[0][1] * inverse_determinant; 
-        dest.m[1][1] = inverse.m[1][1] * inverse_determinant; 
-        dest.m[2][1] = inverse.m[2][1] * inverse_determinant; 
-        dest.m[3][1] = inverse.m[3][1] * inverse_determinant;
-        dest.m[0][2] = inverse.m[0][2] * inverse_determinant; 
-        dest.m[1][2] = inverse.m[1][2] * inverse_determinant; 
-        dest.m[2][2] = inverse.m[2][2] * inverse_determinant; 
-        dest.m[3][2] = inverse.m[3][2] * inverse_determinant;
-        dest.m[0][3] = inverse.m[0][3] * inverse_determinant; 
-        dest.m[1][3] = inverse.m[1][3] * inverse_determinant; 
-        dest.m[2][3] = inverse.m[2][3] * inverse_determinant; 
-        dest.m[3][3] = inverse.m[3][3] * inverse_determinant;
-        return dest;
+        #if defined( __SSE__ ) || defined( __SSE2__ )
+            __m128 A = sf_vec_shuffle_0101(matrix_register[0], 
+                                           matrix_register[1]);
+            __m128 B = sf_vec_shuffle_2323(matrix_register[0], 
+                                           matrix_register[1]);
+            __m128 C = sf_vec_shuffle_0101(matrix_register[2], 
+                                           matrix_register[3]);
+            __m128 D = sf_vec_shuffle_2323(matrix_register[2], 
+                                           matrix_register[3]);
+            #if 0
+            __m128 detA = _mm_set1_ps(m[0][0] * m[1][1] - 
+                                      m[0][1] * m[1][0]);
+            __m128 detB = _mm_set1_ps(m[0][2] * m[1][3] - 
+                                      m[0][3] * m[1][2]);
+            __m128 detC = _mm_set1_ps(m[2][0] * m[3][1] - 
+                                      m[2][1] * m[3][0]);
+            __m128 detD = _mm_set1_ps(m[2][2] * m[3][3] - 
+                                      m[2][3] * m[3][2]);
+            #else
+            __m128 detSub = _mm_sub_ps(
+                            _mm_mul_ps(
+                            sf_vec_shuffle(matrix_register[0], 
+                                           matrix_register[2], 0,2,0,2), 
+                            sf_vec_shuffle(matrix_register[1], 
+                                           matrix_register[3], 1,3,1,3)),
+                            _mm_mul_ps(
+                            sf_vec_shuffle(matrix_register[0], 
+                                           matrix_register[2], 1,3,1,3), 
+                            sf_vec_shuffle(matrix_register[1], 
+                                           matrix_register[3], 0,2,0,2)));
+            __m128 detA = sf_vec_swizzle_single_element(detSub, 0);
+            __m128 detB = sf_vec_swizzle_single_element(detSub, 1);
+            __m128 detC = sf_vec_swizzle_single_element(detSub, 2);
+            __m128 detD = sf_vec_swizzle_single_element(detSub, 3);
+            #endif
+            __m128 D_C =  _mm_sub_ps(
+                          _mm_mul_ps(
+                          sf_vec_swizzle_all_elements(D, 3,3,0,0), C),
+                          _mm_mul_ps(
+                          sf_vec_swizzle_all_elements(D, 1,1,2,2), 
+                          sf_vec_swizzle_all_elements(C, 2,3,0,1)));
+            __m128 A_B =  _mm_sub_ps(
+                          _mm_mul_ps(
+                          sf_vec_swizzle_all_elements(A, 3,3,0,0), B),
+                          _mm_mul_ps(
+                          sf_vec_swizzle_all_elements(A, 1,1,2,2), 
+                          sf_vec_swizzle_all_elements(B, 2,3,0,1)));
+            __m128 X_ =   _mm_sub_ps(
+                          _mm_mul_ps(detD, A), 
+                          _mm_add_ps(
+                          _mm_mul_ps(B, 
+                          sf_vec_swizzle_all_elements(D_C, 0,3,0,3)),
+                          _mm_mul_ps(
+                          sf_vec_swizzle_all_elements(B, 1,0,3,2), 
+                          sf_vec_swizzle_all_elements(D_C, 2,1,2,1))));
+            __m128 W_ =   _mm_sub_ps(
+                          _mm_mul_ps(detA, D), 
+                          _mm_add_ps(_mm_mul_ps(C, 
+                          sf_vec_swizzle_all_elements(A_B, 0,3,0,3)),
+                          _mm_mul_ps(
+                          sf_vec_swizzle_all_elements(C, 1,0,3,2), 
+                          sf_vec_swizzle_all_elements(A_B, 2,1,2,1))));
+            __m128 detM = _mm_mul_ps(detA, detD);
+            __m128 Y_ =   _mm_sub_ps(
+                          _mm_mul_ps(detB, C), 
+                          _mm_sub_ps(
+                          _mm_mul_ps(D, 
+                          sf_vec_swizzle_all_elements(A_B, 3,0,3,0)),
+                          _mm_mul_ps(
+                          sf_vec_swizzle_all_elements(D, 1,0,3,2), 
+                          sf_vec_swizzle_all_elements(A_B, 2,1,2,1))));
+            __m128 Z_ =   _mm_sub_ps(
+                          _mm_mul_ps(detC, B), 
+                          _mm_sub_ps(
+                          _mm_mul_ps(A, 
+                          sf_vec_swizzle_all_elements(D_C, 3,0,3,0)),
+                          _mm_mul_ps(
+                          sf_vec_swizzle_all_elements(A, 1,0,3,2), 
+                          sf_vec_swizzle_all_elements(D_C, 2,1,2,1))));
+            detM =        _mm_add_ps(detM, 
+                          _mm_mul_ps(detB, detC));
+            __m128 tr =   _mm_mul_ps(A_B, 
+                          sf_vec_swizzle_all_elements(D_C, 0,2,1,3));
+
+            tr = _mm_hadd_ps(tr, tr);
+            tr = _mm_hadd_ps(tr, tr);
+            detM = _mm_sub_ps(detM, tr);
+            const __m128 adjSignMask = _mm_setr_ps(1.0f, -1.0f, -1.0f, 1.0f);
+            __m128 rDetM = _mm_div_ps(adjSignMask, detM);
+            X_ = _mm_mul_ps(X_, rDetM);
+            Y_ = _mm_mul_ps(Y_, rDetM);
+            Z_ = _mm_mul_ps(Z_, rDetM);
+            W_ = _mm_mul_ps(W_, rDetM);
+
+            mat4 r;
+            r.matrix_register[0] = sf_vec_shuffle(X_, Y_, 3,1,3,1);
+            r.matrix_register[1] = sf_vec_shuffle(X_, Y_, 2,0,2,0);
+            r.matrix_register[2] = sf_vec_shuffle(Z_, W_, 3,1,3,1);
+            r.matrix_register[3] = sf_vec_shuffle(Z_, W_, 2,0,2,0);
+
+            return r;
+        #else // scalar version
+            f32 c00 = m[2][2] * m[3][3] - m[2][3] * m[3][2];
+            f32 c02 = m[2][1] * m[3][3] - m[2][3] * m[3][1];
+            f32 c03 = m[2][1] * m[3][2] - m[2][2] * m[3][1];
+            f32 c04 = m[1][2] * m[3][3] - m[1][3] * m[3][2];
+            f32 c06 = m[1][1] * m[3][3] - m[1][3] * m[3][1];
+            f32 c07 = m[1][1] * m[3][2] - m[1][2] * m[3][1];
+            f32 c08 = m[1][2] * m[2][3] - m[1][3] * m[2][2];
+            f32 c10 = m[1][1] * m[2][3] - m[1][3] * m[2][1];
+            f32 c11 = m[1][1] * m[2][2] - m[1][2] * m[2][1];
+            f32 c12 = m[0][2] * m[3][3] - m[0][3] * m[3][2];
+            f32 c14 = m[0][1] * m[3][3] - m[0][3] * m[3][1];
+            f32 c15 = m[0][1] * m[3][2] - m[0][2] * m[3][1];
+            f32 c16 = m[0][2] * m[2][3] - m[0][3] * m[2][2];
+            f32 c18 = m[0][1] * m[2][3] - m[0][3] * m[2][1];
+            f32 c19 = m[0][1] * m[2][2] - m[0][2] * m[2][1];
+            f32 c20 = m[0][2] * m[1][3] - m[0][3] * m[1][2];
+            f32 c22 = m[0][1] * m[1][3] - m[0][3] * m[1][1];
+            f32 c23 = m[0][1] * m[1][2] - m[0][2] * m[1][1];
+            vec4 f0(c00, c00, c02, c03);
+            vec4 f1(c04, c04, c06, c07);
+            vec4 f2(c08, c08, c10, c11);
+            vec4 f3(c12, c12, c14, c15);
+            vec4 f4(c16, c16, c18, c19);
+            vec4 f5(c20, c20, c22, c23);
+            vec4 v0(m[0][1], m[0][0], m[0][0], m[0][0]);
+            vec4 v1(m[1][1], m[1][0], m[1][0], m[1][0]);
+            vec4 v2(m[2][1], m[2][0], m[2][0], m[2][0]);
+            vec4 v3(m[3][1], m[3][0], m[3][0], m[3][0]);
+            vec4 i0(v1 * f0 - v2 * f1 + v3 * f2);
+            vec4 i1(v0 * f0 - v2 * f3 + v3 * f4);
+            vec4 i2(v0 * f1 - v1 * f3 + v3 * f5);
+            vec4 i3(v0 * f2 - v1 * f4 + v2 * f5);
+            vec4 sA( 1, -1,  1, -1);
+            vec4 sB(-1,  1, -1,  1);
+            mat4 inverse(i0 * sA, i1 * sB, i2 * sA, i3 * sB);
+            vec4 r0(inverse.m[0][0],
+                    inverse.m[0][1],
+                    inverse.m[0][2],
+                    inverse.m[0][3]);
+            vec4 d0(m[0][0] * r0.x, 
+                    m[1][0] * r0.y, 
+                    m[2][0] * r0.z, 
+                    m[3][0] * r0.w);
+            f32 d1 = (d0.x + d0.y) + (d0.z + d0.w);
+            f32 inverse_determinant = 1.0f / d1;
+            mat4 dest;  
+            dest.m[0][0] = inverse.m[0][0] * inverse_determinant; 
+            dest.m[1][0] = inverse.m[1][0] * inverse_determinant; 
+            dest.m[2][0] = inverse.m[2][0] * inverse_determinant; 
+            dest.m[3][0] = inverse.m[3][0] * inverse_determinant;
+            dest.m[0][1] = inverse.m[0][1] * inverse_determinant; 
+            dest.m[1][1] = inverse.m[1][1] * inverse_determinant; 
+            dest.m[2][1] = inverse.m[2][1] * inverse_determinant; 
+            dest.m[3][1] = inverse.m[3][1] * inverse_determinant;
+            dest.m[0][2] = inverse.m[0][2] * inverse_determinant; 
+            dest.m[1][2] = inverse.m[1][2] * inverse_determinant; 
+            dest.m[2][2] = inverse.m[2][2] * inverse_determinant; 
+            dest.m[3][2] = inverse.m[3][2] * inverse_determinant;
+            dest.m[0][3] = inverse.m[0][3] * inverse_determinant; 
+            dest.m[1][3] = inverse.m[1][3] * inverse_determinant; 
+            dest.m[2][3] = inverse.m[2][3] * inverse_determinant; 
+            dest.m[3][3] = inverse.m[3][3] * inverse_determinant;
+            return dest;
+        #endif
     }
 
 }; // mat4
@@ -2446,7 +2820,7 @@ operator -
     return c;
 }   
  
-/* Subtract a mat4 from a mat3. */
+/* Subtract a mat4 from a mat4. */
 [[nodiscard]] sf_inline mat4 
 operator - 
 (const mat4& lhs, const mat4& rhs) {
@@ -3066,8 +3440,7 @@ struct quat {
             f32 x_axis = 1.0f - (2.0f * (sf_math_utils_square(x) + 
                                          sf_math_utils_square(z)));
             f32 y_axis = 2.0f * (w * x - y * z);
-            if ((x_axis == 0.0f) && 
-                (y_axis == 0.0f)) { 
+            if ((x_axis == 0.0f) && (y_axis == 0.0f)) { 
                 return 0.0f; 
             }
             return std::atan2(x_axis, x_axis);
@@ -3295,4 +3668,4 @@ lerp(const quat& q1, const quat& q2, const f32& t) {
     return 1.0f - t * (q1 + t * q2);
 }
 
-} // namespace sf
+}  // namespace sf
