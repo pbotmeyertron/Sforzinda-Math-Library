@@ -31,11 +31,6 @@ namespace sf {
 #define EPSILON         FLT_EPSILON  
 #endif
 
-/* Double-precision machine epsilon as specified in float.h */
-#ifndef EPSILON
-#define EPSILON         DBL_EPSILON  
-#endif
-
 /* sqrt(2) */
 #ifndef SQRT_2
 #define SQRT_2          1.414213562373095048801688724209698079f  
@@ -2929,79 +2924,9 @@ operator *
                         rhs.m[3][j] * lhs.m[i][3];
             }
         } 
+    /* In my testing, on modern compilers, unrolling this loop manually produces
+     * no better code than putting it all in a for loop. */
     return c;
-
-    /* The following code represents the 'unrolled loop' version of mat4
-     * multiplication. In my testing on modern compilers, the version above is
-     * faster or the same, although this was not always the case. I will keep
-     * this here in case that somehow changes in the future. */
-
-    // mat4 c;
-    // c.m[0][0] = lhs.m[0][0] * rhs.m[0][0] + 
-    //             lhs.m[1][0] * rhs.m[0][1] + 
-    //             lhs.m[2][0] * rhs.m[0][2] + 
-    //             lhs.m[3][0] * rhs.m[0][3];
-    // c.m[0][1] = lhs.m[0][1] * rhs.m[0][0] + 
-    //             lhs.m[1][1] * rhs.m[0][1] + 
-    //             lhs.m[2][1] * rhs.m[0][2] + 
-    //             lhs.m[3][1] * rhs.m[0][3];
-    // c.m[0][2] = lhs.m[0][2] * rhs.m[0][0] + 
-    //             lhs.m[1][2] * rhs.m[0][1] + 
-    //             lhs.m[2][2] * rhs.m[0][2] + 
-    //             lhs.m[3][2] * rhs.m[0][3];
-    // c.m[0][3] = lhs.m[0][3] * rhs.m[0][0] + 
-    //             lhs.m[1][3] * rhs.m[0][1] + 
-    //             lhs.m[2][3] * rhs.m[0][2] + 
-    //             lhs.m[3][3] * rhs.m[0][3];
-    // c.m[1][0] = lhs.m[0][0] * rhs.m[1][0] + 
-    //             lhs.m[1][0] * rhs.m[1][1] + 
-    //             lhs.m[2][0] * rhs.m[1][2] + 
-    //             lhs.m[3][0] * rhs.m[1][3];
-    // c.m[1][1] = lhs.m[0][1] * rhs.m[1][0] + 
-    //             lhs.m[1][1] * rhs.m[1][1] + 
-    //             lhs.m[2][1] * rhs.m[1][2] + 
-    //             lhs.m[3][1] * rhs.m[1][3];
-    // c.m[1][2] = lhs.m[0][2] * rhs.m[1][0] + 
-    //             lhs.m[1][2] * rhs.m[1][1] + 
-    //             lhs.m[2][2] * rhs.m[1][2] + 
-    //             lhs.m[3][2] * rhs.m[1][3];
-    // c.m[1][3] = lhs.m[0][3] * rhs.m[1][0] + 
-    //             lhs.m[1][3] * rhs.m[1][1] + 
-    //             lhs.m[2][3] * rhs.m[1][2] + 
-    //             lhs.m[3][3] * rhs.m[1][3];
-    // c.m[2][0] = lhs.m[0][0] * rhs.m[2][0] + 
-    //             lhs.m[1][0] * rhs.m[2][1] + 
-    //             lhs.m[2][0] * rhs.m[2][2] + 
-    //             lhs.m[3][0] * rhs.m[2][3];
-    // c.m[2][1] = lhs.m[0][1] * rhs.m[2][0] + 
-    //             lhs.m[1][1] * rhs.m[2][1] + 
-    //             lhs.m[2][1] * rhs.m[2][2] + 
-    //             lhs.m[3][1] * rhs.m[2][3];
-    // c.m[2][2] = lhs.m[0][2] * rhs.m[2][0] + 
-    //             lhs.m[1][2] * rhs.m[2][1] + 
-    //             lhs.m[2][2] * rhs.m[2][2] + 
-    //             lhs.m[3][2] * rhs.m[2][3];
-    // c.m[2][3] = lhs.m[0][3] * rhs.m[2][0] + 
-    //             lhs.m[1][3] * rhs.m[2][1] + 
-    //             lhs.m[2][3] * rhs.m[2][2] + 
-    //             lhs.m[3][3] * rhs.m[2][3];
-    // c.m[3][0] = lhs.m[0][0] * rhs.m[3][0] + 
-    //             lhs.m[1][0] * rhs.m[3][1] + 
-    //             lhs.m[2][0] * rhs.m[3][2] + 
-    //             lhs.m[3][0] * rhs.m[3][3];
-    // c.m[3][1] = lhs.m[0][1] * rhs.m[3][0] + 
-    //             lhs.m[1][1] * rhs.m[3][1] + 
-    //             lhs.m[2][1] * rhs.m[3][2] + 
-    //             lhs.m[3][1] * rhs.m[3][3];
-    // c.m[3][2] = lhs.m[0][2] * rhs.m[3][0] + 
-    //             lhs.m[1][2] * rhs.m[3][1] + 
-    //             lhs.m[2][2] * rhs.m[3][2] + 
-    //             lhs.m[3][2] * rhs.m[3][3];
-    // c.m[3][3] = lhs.m[0][3] * rhs.m[3][0] + 
-    //             lhs.m[1][3] * rhs.m[3][1] + 
-    //             lhs.m[2][3] * rhs.m[3][2] + 
-    //             lhs.m[3][3] * rhs.m[3][3];
-    // return c;
 }
 
 /* Multiply-equals operand with two mat4s. */
